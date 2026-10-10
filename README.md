@@ -1,1097 +1,535 @@
 # Employee Management API
 
-A production-oriented RESTful Employee Management API built with **Python, Flask, SQLAlchemy, PostgreSQL, JWT authentication, RBAC, and layered architecture**.
+![Python](https://img.shields.io/badge/Python-3.12-blue)
+![Flask](https://img.shields.io/badge/Flask-REST%20API-black)
+![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-4169E1)
+![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED)
+![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF)
 
-The project demonstrates backend API development practices including authentication, authorization, CRUD operations, validation, pagination, filtering, search, API versioning, automated testing, and OpenAPI/Swagger documentation.
+A RESTful Employee Management API built with Python, Flask, SQLAlchemy, and PostgreSQL. The project implements JWT authentication, role-based access control (RBAC), employee management, audit logging, database migrations, automated testing, Docker containerization, and a GitHub Actions continuous integration pipeline.
 
----
+## Table of Contents
 
-## 1. Project Overview
+- [Features](#features)
+- [Technology Stack](#technology-stack)
+- [Architecture](#architecture)
+- [User Roles and Permissions](#user-roles-and-permissions)
+- [API Endpoints](#api-endpoints)
+- [Getting Started](#getting-started)
+- [Environment Variables](#environment-variables)
+- [Database Migrations](#database-migrations)
+- [Docker Setup](#docker-setup)
+- [Testing and Coverage](#testing-and-coverage)
+- [CI/CD Pipeline](#cicd-pipeline)
+- [API Documentation](#api-documentation)
+- [Project Structure](#project-structure)
+- [Security Considerations](#security-considerations)
+- [Future Improvements](#future-improvements)
 
-The Employee Management API provides a secure backend system for managing employee records and user accounts.
+## Features
 
-The API separates responsibilities into different layers:
+### Authentication and Authorization
+- User registration and login.
+- JWT-based access and refresh tokens.
+- Password hashing.
+- Protected API endpoints.
+- Role-based access control for Admin, Manager, and Employee roles.
+- Authenticated user profile endpoint.
+
+### Employee Management
+- Create, retrieve, update, and delete employee records.
+- Associate employee records with user accounts.
+- Restrict employees to accessing and updating their own records.
+- Support administrative and managerial access according to role permissions.
+- Validate incoming request data.
+
+### API Features
+- Versioned API routes using `/api/v1/`.
+- Pagination for employee listings.
+- Employee search and filtering.
+- Centralized error handling.
+- Swagger API documentation through Flasgger.
+
+### Audit Logging and Security
+- Audit events for selected operations, including authentication and employee/user changes.
+- Administrative access to audit-log endpoints.
+- Rate limiting with Flask-Limiter.
+- Configuration through environment variables.
+
+### Database and DevOps
+- PostgreSQL integration using Flask-SQLAlchemy.
+- Version-controlled database schema changes using Flask-Migrate and Alembic.
+- Automated tests using pytest.
+- Test coverage reports using pytest-cov.
+- Docker image for the Flask API.
+- Docker Compose for running the API and PostgreSQL together.
+- Persistent PostgreSQL storage through a Docker volume.
+- GitHub Actions workflow for automated testing, coverage, and Docker image builds.
+
+## Technology Stack
+
+| Category | Technologies |
+|---|---|
+| Language | Python 3.12 |
+| Backend | Flask, REST APIs |
+| ORM | Flask-SQLAlchemy, SQLAlchemy |
+| Database | PostgreSQL |
+| Authentication | Flask-JWT-Extended, JWT |
+| API Documentation | Flasgger, Swagger/OpenAPI |
+| Security | RBAC, password hashing, Flask-Limiter |
+| Migrations | Flask-Migrate, Alembic |
+| Testing | pytest, pytest-cov |
+| API Testing | Postman |
+| Containerization | Docker, Docker Compose |
+| CI/CD | GitHub Actions, YAML |
+| Version Control | Git, GitHub |
+
+## Architecture
+
+The application follows a layered structure to separate routing, business logic, data access, and database models.
 
 ```text
-Client
-  │
-  ▼
-Routes
-  │
-  ▼
-Middleware
-  │
-  ▼
+Client / Postman
+       |
+       v
+Flask Routes
+       |
+       v
 Controllers
-  │
-  ▼
-Schemas
-  │
-  ▼
+       |
+       v
 Services
-  │
-  ▼
+       |
+       v
 Repositories
-  │
-  ▼
+       |
+       v
 SQLAlchemy Models
-  │
-  ▼
+       |
+       v
 PostgreSQL
 ```
 
-This architecture keeps HTTP handling, business logic, validation, database access, and authentication concerns separated.
+Supporting components include:
 
----
+- **Middleware:** request protection and error handling.
+- **Schemas:** request validation and data serialization, where implemented.
+- **Utilities:** reusable application helpers.
+- **Audit logging:** records selected application events.
+- **Flask-Migrate/Alembic:** manages database schema revisions.
+- **Docker Compose:** runs the API and database as separate services.
 
-## 2. Features
+## User Roles and Permissions
 
-### Authentication
+| Operation | Admin | Manager | Employee |
+|---|---|---|---|
+| Create employee | Yes | Yes | No |
+| View all employees | Yes | Yes | No |
+| View individual employee | Yes | Yes | Own record |
+| Update employee | Yes | Yes | Own record |
+| Delete employee | Yes | No | No |
+| Access administrative audit logs | Yes | No | No |
 
-* User registration
-* User login
-* JWT access tokens
-* JWT refresh tokens
-* Protected endpoints
-* Token expiration handling
-* Inactive-user protection
+Access is enforced by the application's authorization logic. Exact permissions depend on the route and its configured decorators.
 
-### Authorization
+## API Endpoints
 
-Role-Based Access Control (RBAC):
+Base URL for local development:
 
-* Admin
-* Manager
-* Employee
+`http://127.0.0.1:5000`
 
-Authorization is enforced at the API endpoint and resource-ownership level.
+### Authentication and Users
 
-### Employee Management
+| Method | Endpoint | Purpose |
+|---|---|---|
+| POST | `/api/v1/users/register` | Register a user |
+| POST | `/api/v1/users/login` | Authenticate a user, if configured on this route |
+| GET | `/api/v1/users/me` | Retrieve the authenticated user's profile |
+| POST | `/api/v1/auth/refresh` | Refresh an access token |
 
-* Create employee
-* Get employee by ID
-* Get all employees
-* Update employee
-* Delete employee
-* Employee ownership checking
+### Employees
 
-### API Quality
+| Method | Endpoint | Purpose |
+|---|---|---|
+| POST | `/api/v1/employees` | Create an employee |
+| GET | `/api/v1/employees` | Retrieve employee records |
+| GET | `/api/v1/employees/{employee_id}` | Retrieve an employee by ID |
+| PUT | `/api/v1/employees/{employee_id}` | Update an employee |
+| DELETE | `/api/v1/employees/{employee_id}` | Delete an employee |
 
-* API versioning
-* Request validation
-* Standardized JSON responses
-* HTTP status codes
-* Pagination
-* Search
-* Filtering
+Employee listing supports pagination and configured search/filter parameters.
 
-### Documentation
+### Audit Logs
 
-* OpenAPI/Swagger UI
-* API endpoint documentation
-* Request/response examples
-* Authentication documentation
+Audit-log endpoints are available to authorized administrators. Refer to the registered audit routes and Swagger documentation for the exact paths and supported query parameters.
 
-### Testing
+> Verify the authentication route paths against your current Flask blueprints before publishing this endpoint table. The table documents the intended API surface, and route registrations in the code are authoritative.
 
-* Pytest
-* Authentication tests
-* Authorization tests
-* Employee CRUD tests
-* Validation tests
-* Ownership tests
-* Error-condition tests
+## Getting Started
 
----
+### Prerequisites
 
-## 3. Technology Stack
+For local development:
 
-| Technology         | Purpose                       |
-| ------------------ | ----------------------------- |
-| Python             | Backend programming           |
-| Flask              | REST API framework            |
-| Flask-SQLAlchemy   | ORM/database integration      |
-| SQLAlchemy         | Database abstraction          |
-| PostgreSQL         | Relational database           |
-| Flask-JWT-Extended | JWT authentication            |
-| Flasgger           | Swagger/OpenAPI documentation |
-| Pytest             | Automated testing             |
-| Postman            | API testing                   |
-| Git/GitHub         | Version control               |
+- Python 3.12
+- PostgreSQL
+- Git
+- Postman (recommended)
 
----
+For containerized development:
 
-## 4. Project Structure
+- Docker Desktop
+- Docker Compose
 
-```text
-employee-management-api/
-│
-├── app/
-│   │
-│   ├── config/
-│   │   └── settings.py
-│   │
-│   ├── controllers/
-│   │   ├── user_controller.py
-│   │   └── employee_controller.py
-│   │
-│   ├── middleware/
-│   │   ├── auth.py
-│   │   └── error_handler.py
-│   │
-│   ├── models/
-│   │   ├── __init__.py
-│   │   ├── user.py
-│   │   └── employee.py
-│   │
-│   ├── repositories/
-│   │   ├── user_repository.py
-│   │   └── employee_repository.py
-│   │
-│   ├── routes/
-│   │   ├── user_routes.py
-│   │   ├── auth_routes.py
-│   │   └── employee_routes.py
-│   │
-│   ├── schemas/
-│   │   ├── user_schema.py
-│   │   └── employee_schema.py
-│   │
-│   ├── services/
-│   │   ├── user_service.py
-│   │   └── employee_service.py
-│   │
-│   ├── utils/
-│   │   ├── password.py
-│   │   └── response.py
-│   │
-│   └── __init__.py
-│
-├── docs/
-│   └── api.md
-│
-├── tests/
-│   ├── test_user.py
-│   ├── test_auth.py
-│   └── test_employee.py
-│
-├── .env
-├── .gitignore
-├── README.md
-├── requirements.txt
-└── run.py
-```
+### 1. Clone the Repository
 
----
-
-## 5. Architecture
-
-The project follows a layered architecture.
-
-### Routes
-
-Responsible for:
-
-* URL definitions
-* HTTP methods
-* Authentication/authorization decorators
-* Connecting endpoints to controllers
-
-Example:
-
-```text
-POST /api/v1/employees
-```
-
----
-
-### Middleware
-
-Responsible for cross-cutting concerns such as:
-
-* JWT verification
-* Role verification
-* Error handling
-
----
-
-### Controllers
-
-Responsible for:
-
-* Reading HTTP requests
-* Calling schemas
-* Calling services
-* Returning HTTP responses
-
-Controllers do not contain database logic.
-
----
-
-### Schemas
-
-Responsible for:
-
-* Request validation
-* Required fields
-* Data types
-* Input constraints
-
----
-
-### Services
-
-Responsible for:
-
-* Business logic
-* Duplicate checking
-* Ownership rules
-* Employee creation/update logic
-
----
-
-### Repositories
-
-Responsible for:
-
-* Database queries
-* Creating records
-* Updating records
-* Deleting records
-* Retrieving records
-
----
-
-### Models
-
-Represent database tables using SQLAlchemy ORM.
-
-Main models:
-
-```text
-User
-Employee
-```
-
----
-
-## 6. Database Design
-
-### User
-
-```text
-users
-│
-├── id
-├── username
-├── email
-├── password_hash
-├── role
-├── is_active
-├── created_at
-└── updated_at
-```
-
-### Employee
-
-```text
-employees
-│
-├── id
-├── user_id
-├── employee_code
-├── first_name
-├── last_name
-├── email
-├── phone
-├── designation
-├── salary
-├── joining_date
-├── department
-├── is_active
-├── created_at
-└── updated_at
-```
-
-### Relationship
-
-Each user can have one employee record:
-
-```text
-User
- │
- │ 1 : 1
- │
- ▼
-Employee
-```
-
-The relationship is implemented through:
-
-```text
-employees.user_id → users.id
-```
-
----
-
-## 7. Role-Based Access Control
-
-The API uses three roles.
-
-| Operation          | Admin | Manager |   Employee |
-| ------------------ | ----: | ------: | ---------: |
-| Create employee    |   Yes |     Yes |         No |
-| View all employees |   Yes |     Yes |         No |
-| View employee      |   Yes |     Yes | Own record |
-| Update employee    |   Yes |     Yes | Own record |
-| Delete employee    |   Yes |      No |         No |
-
-Employee-level ownership is also checked.
-
-For example:
-
-```text
-Employee A
-    │
-    └── Can access Employee A's record
-
-Employee A
-    │
-    └── Cannot access Employee B's record
-```
-
----
-
-## 8. API Version
-
-The API currently uses:
-
-```text
-/api/v1
-```
-
-Example:
-
-```text
-/api/v1/employees
-```
-
-Versioning allows future API versions to be introduced without immediately breaking existing clients.
-
----
-
-# 9. API Endpoints
-
-## Authentication
-
-### Register
-
-```http
-POST /api/v1/users/register
-```
-
-Request:
-
-```json
-{
-    "username": "employee1",
-    "email": "employee1@example.com",
-    "password": "Employee123"
-}
-```
-
----
-
-### Login
-
-```http
-POST /api/v1/users/login
-```
-
-Request:
-
-```json
-{
-    "username": "employee1",
-    "password": "Employee123"
-}
-```
-
-Response:
-
-```json
-{
-    "success": true,
-    "message": "Login successful",
-    "data": {
-        "access_token": "<access-token>",
-        "refresh_token": "<refresh-token>",
-        "user": {
-            "id": 1,
-            "username": "employee1",
-            "email": "employee1@example.com",
-            "role": "Employee"
-        }
-    }
-}
-```
-
----
-
-### Current User
-
-```http
-GET /api/v1/users/me
-```
-
-Requires:
-
-```text
-Authorization: Bearer <access_token>
-```
-
----
-
-### Refresh Access Token
-
-```http
-POST /api/v1/auth/refresh
-```
-
-Requires a valid refresh token.
-
----
-
-# 10. Employee API
-
-## Create Employee
-
-```http
-POST /api/v1/employees
-```
-
-Access:
-
-```text
-Admin
-Manager
-```
-
-Request:
-
-```json
-{
-    "user_id": 1,
-    "employee_code": "EMP001",
-    "first_name": "Muhammad",
-    "last_name": "Yousaf",
-    "email": "employee@example.com",
-    "phone": "+923001234567",
-    "designation": "Software Engineer",
-    "salary": 150000,
-    "joining_date": "2026-09-22",
-    "department": "IT",
-    "is_active": true
-}
-```
-
----
-
-## Get All Employees
-
-```http
-GET /api/v1/employees
-```
-
-Access:
-
-```text
-Admin
-Manager
-```
-
----
-
-## Pagination
-
-```http
-GET /api/v1/employees?page=1&per_page=10
-```
-
-Response structure:
-
-```json
-{
-    "success": true,
-    "data": [],
-    "pagination": {
-        "page": 1,
-        "per_page": 10,
-        "total": 25,
-        "pages": 3,
-        "has_next": true,
-        "has_previous": false
-    }
-}
-```
-
----
-
-## Search Employees
-
-```http
-GET /api/v1/employees?search=Yousaf
-```
-
-Search can match employee information such as:
-
-* First name
-* Last name
-* Employee code
-* Email
-
----
-
-## Filter by Department
-
-```http
-GET /api/v1/employees?department=IT
-```
-
----
-
-## Filter by Active Status
-
-```http
-GET /api/v1/employees?is_active=true
-```
-
----
-
-## Combine Filters
-
-```http
-GET /api/v1/employees?page=1&per_page=20&search=engineer&department=IT&is_active=true
-```
-
----
-
-## Get Employee
-
-```http
-GET /api/v1/employees/{employee_id}
-```
-
-Example:
-
-```http
-GET /api/v1/employees/1
-```
-
----
-
-## Update Employee
-
-```http
-PUT /api/v1/employees/{employee_id}
-```
-
-Example:
-
-```json
-{
-    "designation": "Senior Backend Developer",
-    "salary": 180000,
-    "department": "Engineering"
-}
-```
-
----
-
-## Delete Employee
-
-```http
-DELETE /api/v1/employees/{employee_id}
-```
-
-Access:
-
-```text
-Admin
-```
-
----
-
-# 11. Authentication
-
-Protected endpoints require a JWT access token.
-
-Header:
-
-```http
-Authorization: Bearer <access_token>
-```
-
-Example:
-
-```text
-Authorization: Bearer eyJhbGciOiJIUzI1Ni...
-```
-
-### Token Types
-
-The application uses:
-
-```text
-Access Token
-    │
-    └── Short-lived API authentication
-
-Refresh Token
-    │
-    └── Used to obtain a new access token
-```
-
-Current configuration:
-
-```text
-Access Token: 15 minutes
-Refresh Token: 30 days
-```
-
----
-
-# 12. HTTP Status Codes
-
-| Status | Meaning                          |
-| -----: | -------------------------------- |
-|    200 | Successful request               |
-|    201 | Resource created                 |
-|    400 | Invalid request/validation error |
-|    401 | Authentication required/invalid  |
-|    403 | Insufficient permissions         |
-|    404 | Resource not found               |
-|    405 | Method not allowed               |
-|    409 | Resource conflict                |
-|    500 | Internal server error            |
-
----
-
-# 13. Error Response Format
-
-Example:
-
-```json
-{
-    "success": false,
-    "message": "Insufficient permissions"
-}
-```
-
-Validation example:
-
-```json
-{
-    "success": false,
-    "errors": {
-        "email": "Invalid email address",
-        "password": "Password must contain at least 8 characters"
-    }
-}
-```
-
----
-
-# 14. Swagger / OpenAPI
-
-Interactive API documentation is available through Swagger UI.
-
-After starting the application:
-
-```text
-http://127.0.0.1:5000/apidocs/
-```
-
-Swagger provides an interactive interface for:
-
-* Viewing endpoints
-* Inspecting request parameters
-* Sending API requests
-* Testing authentication-protected endpoints
-* Viewing API responses
-
----
-
-# 15. Installation
-
-## Clone the Repository
+Replace the placeholder with your actual GitHub repository URL.
 
 ```bash
 git clone <your-repository-url>
-```
-
-Move into the project:
-
-```bash
 cd employee-management-api
 ```
 
----
+### 2. Create a Virtual Environment
 
-## Create Virtual Environment
-
-Windows:
+Windows PowerShell:
 
 ```powershell
 python -m venv venv
+.\venv\Scripts\Activate.ps1
 ```
 
-Activate:
+If PowerShell blocks activation, use the appropriate execution policy for your environment or activate the environment through VS Code.
+
+### 3. Install Dependencies
 
 ```powershell
-venv\Scripts\activate
-```
-
----
-
-## Install Dependencies
-
-```powershell
+python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
----
+### 4. Configure Environment Variables
 
-# 16. PostgreSQL Setup
+Create a `.env` file in the project root. Use the appropriate database URL for your chosen execution mode.
 
-Create a PostgreSQL database:
-
-```sql
-CREATE DATABASE employee_management;
-```
-
-Make sure PostgreSQL is running.
-
----
-
-# 17. Environment Variables
-
-Create a `.env` file:
+For local execution:
 
 ```env
+FLASK_ENV=development
+
+SECRET_KEY=replace-with-a-development-secret
+JWT_SECRET_KEY=replace-with-a-development-jwt-secret
+
 DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/employee_management
 
-SECRET_KEY=your-secret-key
-
-JWT_SECRET_KEY=your-jwt-secret-key
+JWT_ACCESS_TOKEN_EXPIRES=900
+JWT_REFRESH_TOKEN_EXPIRES=2592000
 ```
 
-Do not commit `.env` to GitHub.
+Replace `YOUR_PASSWORD` with your PostgreSQL password. URL-encode special characters in the database URL when necessary.
 
----
+Ensure that the database exists and that the configured user has the required permissions.
 
-# 18. Database Initialization
+### 5. Run Database Migrations
 
-During development, database tables can be created using:
+Apply the existing migration history:
 
-```python
-from app import create_app, db
-
-app = create_app()
-
-with app.app_context():
-    db.create_all()
+```powershell
+python -m flask --app run.py db upgrade
 ```
 
-For production database schema management, migration tooling such as Flask-Migrate/Alembic should be used.
+Check the current revision:
 
----
+```powershell
+python -m flask --app run.py db current
+```
 
-# 19. Running the Application
-
-Start the API:
+### 6. Start the Application
 
 ```powershell
 python run.py
 ```
 
-The development server runs at:
+The API should be available at:
 
-```text
-http://127.0.0.1:5000
-```
+`http://127.0.0.1:5000`
 
-Swagger:
+Swagger documentation:
 
-```text
-http://127.0.0.1:5000/apidocs/
-```
+`http://127.0.0.1:5000/apidocs/`
 
----
+## Environment Variables
 
-# 20. Testing
+| Variable | Purpose |
+|---|---|
+| `FLASK_ENV` | Selects the configured application environment |
+| `SECRET_KEY` | Flask application secret |
+| `JWT_SECRET_KEY` | Signs JWT tokens |
+| `DATABASE_URL` | SQLAlchemy database connection |
+| `JWT_ACCESS_TOKEN_EXPIRES` | Access-token lifetime in seconds |
+| `JWT_REFRESH_TOKEN_EXPIRES` | Refresh-token lifetime in seconds |
 
-The project uses Pytest.
+Keep `.env` out of version control. Never commit production credentials or secret keys.
 
-Run all tests:
+## Database Migrations
 
-```powershell
-pytest -v
-```
+The project uses Flask-Migrate and Alembic to manage database schema changes.
 
-Run authentication tests:
+### Generate a Migration
 
-```powershell
-pytest tests/test_auth.py -v
-```
-
-Run employee tests:
+After modifying a model:
 
 ```powershell
-pytest tests/test_employee.py -v
+python -m flask --app run.py db migrate -m "Describe schema change"
 ```
 
-The test suite covers areas including:
+Review the generated migration before applying it.
 
-* User registration
-* Login
-* JWT authentication
-* Refresh tokens
-* Protected routes
-* RBAC
-* Employee creation
-* Employee retrieval
-* Employee update
-* Employee deletion
-* Ownership authorization
-* Validation
-* Duplicate records
-* Not-found responses
-* Pagination validation
+### Apply Migrations
 
----
+```powershell
+python -m flask --app run.py db upgrade
+```
 
-# 21. API Testing with Postman
+### Inspect Migration History
 
-Recommended testing flow:
+```powershell
+python -m flask --app run.py db history
+python -m flask --app run.py db current
+```
+
+### Roll Back a Revision
+
+```powershell
+python -m flask --app run.py db downgrade
+```
+
+Use downgrade only after reviewing the migration and understanding its effect on existing data.
+
+**Workflow:** update model → generate migration → review migration → apply migration.
+
+## Docker Setup
+
+Docker Compose runs the Flask API and PostgreSQL as separate services.
+
+### Start the Services
+
+From the project root:
+
+```powershell
+docker compose up -d --build
+```
+
+Check their status:
+
+```powershell
+docker compose ps
+```
+
+View logs:
+
+```powershell
+docker compose logs -f
+```
+
+### Configure the Container Database
+
+Inside Docker Compose, the API must connect to the database using the Compose service name, typically `db`, rather than `localhost`.
+
+Example connection URL:
+
+```env
+DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@db:5432/employee_management
+```
+
+The PostgreSQL credentials in `docker-compose.yml` must match the credentials in the database URL. Keep passwords consistent between the service configuration and application environment.
+
+### Apply Migrations in Docker
+
+```powershell
+docker compose exec api flask --app run.py db upgrade
+```
+
+Check the migration revision:
+
+```powershell
+docker compose exec api flask --app run.py db current
+```
+
+### Stop the Services
+
+```powershell
+docker compose down
+```
+
+PostgreSQL data is stored in the configured named volume and persists when containers are stopped or recreated.
+
+To remove the containers and their associated volumes:
+
+```powershell
+docker compose down -v
+```
+
+**Warning:** this deletes the Compose-managed database volume and its stored data. Do not run it unless that data can be discarded.
+
+## Testing and Coverage
+
+The project uses pytest for automated testing and pytest-cov for coverage reporting.
+
+### Run Tests
+
+```powershell
+python -m pytest -v
+```
+
+### Generate a Coverage Summary
+
+```powershell
+python -m pytest --cov=app --cov-report=term-missing
+```
+
+### Generate an HTML Coverage Report
+
+```powershell
+python -m pytest --cov=app --cov-report=html
+```
+
+Open `htmlcov/index.html` in a browser to inspect the report.
+
+The test suite covers authentication, users, employees, and audit logging. Tests use an isolated test database configured through the test fixtures.
+
+## CI/CD Pipeline
+
+The project uses **GitHub Actions** to automate continuous integration.
+
+Workflow file:
+
+`.github/workflows/ci.yml`
+
+The workflow is configured to run on pushes to `main` and pull requests targeting `main`.
+
+### Pipeline Steps
+
+1. Check out the repository.
+2. Set up Python 3.12.
+3. Install project dependencies from `requirements.txt`.
+4. Start a PostgreSQL service for CI, where configured.
+5. Run the pytest suite.
+6. Generate a test coverage report.
+7. Build the Docker image after the test job succeeds.
+
+### Pipeline Flow
 
 ```text
-1. Register user
-       ↓
-2. Login
-       ↓
-3. Copy access token
-       ↓
-4. Authorize protected requests
-       ↓
-5. Create employee
-       ↓
-6. Get employees
-       ↓
-7. Get employee
-       ↓
-8. Update employee
-       ↓
-9. Delete employee
+Git Push / Pull Request
+          |
+          v
+    GitHub Actions
+          |
+          v
+ Install Dependencies
+          |
+          v
+      Run Tests
+          |
+          v
+   Generate Coverage
+          |
+          v
+   Build Docker Image
+          |
+          v
+    CI Result: PASS/FAIL
 ```
 
-Protected requests use:
+A failed test job prevents the dependent Docker build job from running.
+
+The workflow uses test credentials and must not depend on your local `.env` file or production secrets.
+
+### Check Workflow Results
+
+1. Open the GitHub repository.
+2. Select the **Actions** tab.
+3. Open the `Employee Management API CI` workflow.
+4. Inspect the job logs if a step fails.
+
+### CI Badge
+
+```markdown
+![CI](https://github.com/ENGR-Yousuf-Iqbal/Employee-Management-API/actions/workflows/ci.yml/badge.svg)
+```
+
+## API Documentation
+
+Swagger documentation is provided by Flasgger.
+
+When the local application is running, open:
+
+`http://127.0.0.1:5000/apidocs/`
+
+Use the documentation to inspect available routes, parameters, request bodies, and response formats. Protected endpoints require valid authentication and appropriate permissions.
+
+## Project Structure
 
 ```text
-Authorization
-    ↓
-Bearer Token
-    ↓
-<access_token>
+employee-management-api/
+│
+├── .github/
+│   └── workflows/
+│       └── ci.yml
+│
+├── app/
+│   ├── config/
+│   ├── controllers/
+│   ├── middleware/
+│   ├── models/
+│   ├── repositories/
+│   ├── routes/
+│   ├── schemas/
+│   ├── services/
+│   └── utils/
+│
+├── migrations/
+│   └── versions/
+│
+├── tests/
+│   ├── conftest.py
+│   ├── test_auth.py
+│   ├── test_user.py
+│   ├── test_employee.py
+│   └── test_audit.py
+│
+├── .dockerignore
+├── .env                  # Local only; do not commit
+├── .gitignore
+├── Dockerfile
+├── docker-compose.yml
+├── README.md
+├── requirements.txt
+└── run.py
 ```
 
----
+## Security Considerations
 
-# 22. Development Workflow
+- Store secrets and credentials in environment variables.
+- Never commit `.env` or production credentials.
+- Use strong, unique secret keys outside local development.
+- Enforce authorization on protected endpoints.
+- Use password hashing rather than storing plaintext passwords.
+- Review generated migrations before applying them.
+- Configure a persistent, shared rate-limit storage backend such as Redis before production use.
+- Use HTTPS and production-appropriate server configuration when deploying.
+- Configure database backups and restrict database access in production.
 
-The project was developed incrementally through sprints.
+## Future Improvements
 
-### Sprint 0 — Project Setup
+- Deploy the API to a cloud platform or VPS.
+- Add production secret management and environment-specific configuration.
+- Configure persistent rate-limit storage.
+- Expand integration tests and enforce an appropriate coverage threshold.
+- Add automated deployment to the CI/CD pipeline.
+- Improve monitoring, logging, and operational documentation.
 
-* Python environment
-* Flask setup
-* Project structure
-* Git
+## License
 
-### Sprint 1 — Database Foundation
-
-* SQLAlchemy
-* PostgreSQL
-* Database configuration
-* Models
-
-### Sprint 2 — User Management
-
-* User model
-* Registration
-* Password hashing
-* Login
-
-### Sprint 3 — Authentication & Authorization
-
-* JWT
-* Access tokens
-* Refresh tokens
-* RBAC
-* Protected routes
-
-### Sprint 4 — Employee Management
-
-* Employee model
-* Employee CRUD
-* Ownership authorization
-* Validation
-* Automated tests
-
-### Sprint 6 — API Quality
-
-* API versioning
-* Pagination
-* Search
-* Filtering
-* Swagger/OpenAPI
-* Standardized responses
-* API documentation
-
----
-
-# 23. Example API Workflow
-
-```text
-                  ┌─────────────┐
-                  │   Register  │
-                  └──────┬──────┘
-                         │
-                         ▼
-                  ┌─────────────┐
-                  │    Login    │
-                  └──────┬──────┘
-                         │
-                         ▼
-                  ┌─────────────┐
-                  │  JWT Token  │
-                  └──────┬──────┘
-                         │
-              ┌──────────┴──────────┐
-              │                     │
-              ▼                     ▼
-       Employee APIs          User APIs
-              │
-       ┌──────┼──────┐
-       ▼      ▼      ▼
-     Create  Read   Update
-                     │
-                     ▼
-                   Delete
-```
-
----
-
-# 24. Security Considerations
-
-The API currently implements:
-
-* Password hashing
-* JWT authentication
-* Role-based authorization
-* Ownership authorization
-* Token expiration
-* Inactive-user checks
-* Input validation
-* Protected endpoints
-* Environment-based secrets
-
-Secrets such as:
-
-```text
-DATABASE_URL
-SECRET_KEY
-JWT_SECRET_KEY
-```
-
-should be stored outside source control.
-
----
-
-# 25. Future Improvements
-
-Potential future enhancements include:
-
-* Flask-Migrate/Alembic
-* Docker
-* Production WSGI server
-* Structured logging
-* Audit logging
-* Rate limiting
-* Token revocation/blacklisting
-* More comprehensive automated tests
-* CI/CD
-* PostgreSQL production deployment
-* Advanced API filtering
-* Department entity and relationships
-* Redis caching
-* Background jobs
-
----
-
-# 26. Current Project Status
-
-```text
-Project: Employee Management API
-
-Status: Active Development
-
-Completed:
-
-[x] Flask REST API
-[x] PostgreSQL integration
-[x] SQLAlchemy ORM
-[x] Layered architecture
-[x] User management
-[x] Password hashing
-[x] JWT authentication
-[x] Refresh tokens
-[x] Role-based access control
-[x] Employee CRUD
-[x] Ownership authorization
-[x] Request validation
-[x] Pagination
-[x] Search
-[x] Filtering
-[x] API versioning
-[x] Swagger/OpenAPI
-[x] Pytest
-[x] Postman API testing
-
-Planned:
-
-[ ] Security hardening
-[ ] Audit logging
-[ ] Database migrations
-[ ] Docker
-[ ] Production deployment
-[ ] CI/CD
-```
-
----
-
-## 27. Author
-
-**Muhammad Yousaf Iqbal**
-
-Python Backend Developer | Data & Automation | Systems Engineering
-
-GitHub: `https://github.com/Engr-Yousuf-Iqbal`
-
----
-
-## 28. License
-
-This project is intended as a portfolio and learning project.
-
-Add an appropriate open-source license if the repository will be distributed publicly.
+No license has been specified yet. Add a `LICENSE` file if you intend to publish this project with explicit reuse permissions.
